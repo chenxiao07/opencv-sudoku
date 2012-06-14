@@ -11,9 +11,9 @@
 #endif
 
 #ifndef _EiC
-#include "cv.h"
-#include "highgui.h"
-#include "ml.h"
+#include "opencv2/ml/ml.hpp"
+#include <opencv/cv.h>
+#include "opencv2/highgui/highgui.hpp"
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
@@ -154,7 +154,7 @@ basicOCR::basicOCR()
 {
 
 	//initial
-	sprintf(file_path , "../OCR/");
+	sprintf(file_path , "./OCR/");
 	train_samples = 50;
 	classes= 10;
 	size=40;

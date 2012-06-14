@@ -11,8 +11,8 @@
 #endif
 
 #ifndef _EiC
-#include "cv.h"
-#include "highgui.h"
+#include <opencv/cv.h>
+#include "opencv2/highgui/highgui.hpp"
 #include <stdio.h>
 #include <ctype.h>
 #endif
