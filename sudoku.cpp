@@ -2,6 +2,7 @@
 #include <opencv/cxcore.h>
 #include "opencv2/highgui/highgui.hpp"
 #include "sudokuHelper.h"
+#include "basicOCR.h"
  
 using namespace cv;         //now using the OpenCV C++ interface, much more Matlabesque
  
