@@ -1,7 +1,140 @@
 #include <opencv/cv.h>
 #include "opencv2/highgui/highgui.hpp"
+#include "sudokuHelper.h"
+#include "basicOCR.h"
  
 using namespace cv; 
+
+void findRect(Mat& src, Mat& dst, Mat& show) {
+    int width = src.size().width;
+    int height = src.size().height;
+    int count=0;
+    int max=(int)(height*width/9);
+    int min=(int)(max/10);
+    Mat test = Mat(Size2i(120,120), CV_8UC1);
+
+    basicOCR ocr;
+ 
+    for(int y=0;y<height;y++)
+    {
+        uchar *row = src.ptr(y);
+        for(int x=0;x<width;x++)
+        {
+            if(row[x]<128)
+            {
+                int area = floodFill(src, dst, Point(x,y), CV_RGB(130+count*10, 130+count*10, 130+count*10), 0, Scalar(), Scalar(), 4 | 255<<8);
+                if(area<max && area>min)
+                {
+                    count++;
+                    Point a,b,c,d,ref(x,y),dx(1,1);
+                    FindContours(dst, a, b, c, d);
+                    a += dx, b += dx, c += dx, d += dx;
+                    Point contours[] = {a, b, c, d};
+                    PerspectiveCut(show, test, contours);
+                    imshow("test", test);
+                    waitKey();
+                    adaptiveThreshold(test, test, 255, ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY, 13, 9);
+                    Reverse(test);
+
+
+        for(int i=0; i<3; i++) {
+            for(int j=0; j<3; j++) {
+                Rect rect(i*40+4, j*40+4, 32, 32);
+                Mat subimage = test(rect);
+                Point maxPt = shLargestFlood(subimage);
+                if(floodFill(subimage, maxPt, CV_RGB(255,255,255)) > 100) {
+                shGetRidOfColor(subimage, 64);
+                Reverse(subimage);
+                if(CalSum(subimage)>22) {
+                IplImage ipl_img = subimage;
+                IplImage* img = &ipl_img;
+
+                imshow("subimage", subimage);
+                char* number = new char[10];
+                sprintf(number, "%d", (int)ocr.classify(img, 0));
+                putText(test,number,cvPoint(22+40*i, 22+40*j), FONT_HERSHEY_SIMPLEX, 1, cvScalar(155,155,155));
+                imshow("test",test);      //demo it's working
+                waitKey(1000);
+                }
+                }
+            }
+        }
+ waitKey();
+
+
+                }
+                Clear(dst);
+            }
+        }
+    }
+}
+
+void Shape_height(Mat& ref, Mat& src, Mat& dst) {
+    int width = ref.size().width;
+    int height = ref.size().height;
+    int limit = (int)height/30;
+    int upper = 0;
+    int lower = height-1;
+    for(int i=0; i<width; i++) {
+        int temp = 0;
+        if(ref.at<uchar>(temp, i) <= 128) {
+            while(temp < limit+upper) {
+                if(ref.at<uchar>(temp, i) > 128) break;
+                temp++;
+            }
+        }
+        while(temp < limit+upper) {
+            if(ref.at<uchar>(temp, i) <= 128) break;
+            temp++;
+        }
+        if(temp >= upper+limit) continue;
+        upper = temp;
+        Rect rect1(i, temp, 1, height-temp);
+        Rect rect2(i, 0, 1, height);
+        Size r2 = rect2.size();
+        resize(src(rect1),dst(rect2), r2);
+    }
+}
+
+void Shape_width(Mat& ref, Mat& src, Mat& dst) {
+    int width = ref.size().width;
+    int height = ref.size().height;
+    int limit = (int)height/30;
+    int upper = 0;
+    for(int i=0; i<height; i++) {
+        int temp = 0;
+        if(ref.at<uchar>(i, temp) <= 128) {
+            while(temp < limit+upper) {
+                if(ref.at<uchar>(i, temp) > 128) break;
+                temp++;
+            }
+        }
+        while(temp < limit+upper) {
+            if(ref.at<uchar>(i, temp) <= 128) break;
+            temp++;
+        }
+        if(temp >= upper+limit) continue;
+        upper = temp;
+        Rect rect1(temp, i, width-temp, 1);
+        Rect rect2(0, i, width, 1);
+        Size r2 = rect2.size();
+        resize(src(rect1),dst(rect2), r2);
+    }
+}
+
+
+int CalSum(Mat& src) {
+    int count = 0;
+    for(int y=0; y<src.size().height; y++) {
+        uchar *row = src.ptr(y);
+        for(int x=0; x<src.size().width; x++) {
+            if(row[x]==0) {
+                count += 1;
+            }
+        }
+    }
+    return count;
+}
 
 void Reverse(Mat& src) {
     for(int y=0; y<src.size().height; y++) {
@@ -12,29 +145,40 @@ void Reverse(Mat& src) {
     }
 }
  
-void PerspectiveCut(const Mat& src, Mat& dst, const Point2f src_point[]) {
+void Clear(Mat& src) {
+    for(int y=0; y<src.size().height; y++) {
+        uchar *row = src.ptr(y);
+        for(int x=0; x<src.size().width; x++) {
+            row[x] = 0;
+        }
+    }
+}
+
+void PerspectiveCut(const Mat& src, Mat& dst, const Point src_point[]) {
 
     float width = dst.size().width;
     float height = dst.size().height;
     Point2f a(0.0f, 0.0f), b(width, 0.0f), c(0.0f, height), d(width, height);
     Point2f dst_point[] = {a, b, c, d};
-    Mat M = getPerspectiveTransform(src_point, dst_point);
+    Point2f aa=src_point[0], bb=src_point[1], cc=src_point[2], dd=src_point[3];
+    Point2f src_f[] = {aa, bb, cc, dd};
+    Mat M = getPerspectiveTransform(src_f, dst_point);
 
     warpPerspective(src, dst, M, dst.size());
 }
 
-void FindContours(const Mat& src, Point2f& a, Point2f& b, Point2f& c, Point2f& d) {
+void FindContours(const Mat& src, Point& a, Point& b, Point& c, Point& d) {
     int width = src.size().width;
     int height = src.size().height;
-    Point2i ra(0, 0), rb(width, 0), rc(0, height), rd(width, height);
+    Point ra(0, 0), rb(width, 0), rc(0, height), rd(width, height);
     double i=9999999999.0f;
     double da=i, db=i, dc=i, dd=i;
     for(int y=0; y<height; y++) {
         const uchar *row = src.ptr(y);
         for(int x=0; x<width; x++) {
-            if(row[x]!=0)
+            if(row[x]>=128)
             {
-                Point2i temp(x, y);
+                Point temp(x, y);
                 if(norm(ra - temp) < da) {
                     a.x = x;
                     a.y = y;

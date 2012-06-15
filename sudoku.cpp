@@ -10,8 +10,9 @@ int main(int argc, const char** argv)
 {
         //Mat is a data type in the Open CV C++ interface
                 //this loads the image from a file, and creates a Mat
-        Mat sudoku = imread("IMG_0133half.jpg", 0);
-        Mat splitImgArr[9][9];              //9x9 Matrix of images split off of original
+        Mat sudoku = imread("sudoku-original.jpg", 0);
+        int width = sudoku.size().width;
+        int height = sudoku.size().height;
  
         Mat outerBox = Mat(sudoku.size(), CV_8UC1);
         GaussianBlur(sudoku, outerBox, Size(11,11), 0);
@@ -34,25 +35,56 @@ int main(int argc, const char** argv)
         shGetRidOfColor(outerBox, 64);
  
         //dilate(outerBox, outerBox, kernel);
-        Mat bigGrid = outerBox.clone();     //save a copy of just the big grid for later
+        Size2i s(180,180);
+        Mat bigGrid = Mat(s, CV_8UC1);
+        Mat outerGrid = Mat(s, CV_8UC1);
+        Mat result = Mat(s, CV_8UC3);
+        Mat mask = Mat(Size2i(width+2,height+2), CV_8UC1);
+        findRect(outerBox, mask, sudoku);
+
+        waitKey();
+
+        return 0;
  
         Point2f a(5.0f, 40.0f), b(220.0f, 40.0f), c(5.0f, 250.0f), d(220.0f, 250.0f);
-        FindContours(outerBox, a, b, c, d);
-        Point2f src_point[] = {a, b, c, d};
-        PerspectiveCut(sudoku, bigGrid, src_point);
-
-        circle(outerBox, a, 15, CV_RGB(66,66,66));
-        circle(outerBox, b, 15, CV_RGB(66,66,66));
-        circle(outerBox, c, 15, CV_RGB(66,66,66));
-        circle(outerBox, d, 15, CV_RGB(66,66,66));
+        //FindContours(outerBox, a, b, c, d);
+        //Point2f src_point[] = {a, b, c, d};
+        //PerspectiveCut(sudoku, bigGrid, src_point);
+        //PerspectiveCut(outerBox, outerGrid, src_point);
+        //Mat bigGrid2 = bigGrid.clone();
+        //Shape_height(outerGrid, bigGrid2, bigGrid);
+        //Shape_width(outerGrid, bigGrid2, bigGrid);
+        imshow("bigGrid:",bigGrid);      //demo it's working
+        imshow("outerGrid:",outerGrid);      //demo it's working
 
         adaptiveThreshold(bigGrid, bigGrid, 255, ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY, 5, 9);
-        Reverse(bigGrid);
-        dilate(bigGrid, bigGrid, kernel);
-        Reverse(bigGrid);
+        //Reverse(bigGrid);
+        //dilate(bigGrid, bigGrid, kernel);
+        //Reverse(bigGrid);
 
-        imshow("outerBoxWorkingDemo:",outerBox);      //demo it's working
-        imshow("PerspectiveCut:",bigGrid);      //demo it's working
+        basicOCR ocr;
+
+        cvtColor(bigGrid, result, CV_GRAY2BGR);
+
+        for(int i=0; i<9; i++) {
+            for(int j=0; j<9; j++) {
+                Rect rect(i*20, j*20, 20, 20);
+                Mat subimage = bigGrid(rect);
+                if(CalSum(subimage)>22) {
+                IplImage ipl_img = subimage;
+                IplImage* img = &ipl_img;
+
+                imshow("test", subimage);
+                char* number = new char[10];
+                sprintf(number, "%d", (int)ocr.classify(img, 0));
+                putText(result,number,cvPoint(10+20*i, 10+20*j), FONT_HERSHEY_SIMPLEX, 0.5, cvScalar(0,0,255));
+                //rectangle(result, rect, cvScalar(0,0,255));
+                imshow("sudoku:",result);      //demo it's working
+                waitKey(100);
+                }
+            }
+        }
+
         waitKey();
 
         return 0;
